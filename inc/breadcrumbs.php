@@ -47,12 +47,6 @@ function breadcrumb_trail( $args = array() ) {
  * @since  0.6.0
  * @access public
  */
-/**
- * Creates a breadcrumbs menu for the site based on the current page that's being viewed by the user.
- *
- * @since  0.6.0
- * @access public
- */
 class Astra_Breadcrumb_Trail {
 
 	/**
@@ -191,9 +185,9 @@ class Astra_Breadcrumb_Trail {
 			$breadcrumb .= sprintf(
 				'<%1$s class="trail-items" %2$s>',
 				tag_escape( $this->args['list_tag'] ),
-				$this->args['schema'] ? 'itemscope itemtype="http://schema.org/BreadcrumbList"' : '',
+				( $this->args['schema'] ? 'itemscope itemtype="http://schema.org/BreadcrumbList"' : '' )
 			);
-
+				
 			if ( $this->args['schema'] ) {
 				// Add the number of items and item list order schema.
 				$breadcrumb .= sprintf( '<meta name="numberOfItems" content="%d" />', absint( $item_count ) );
@@ -255,7 +249,7 @@ class Astra_Breadcrumb_Trail {
 				$this->args['before'],
 				$breadcrumb,
 				$this->args['after'],
-				$this->args['schema'] ? 'sitemprop="breadcrumb"' : '',
+				$this->args['schema'] ? 'sitemprop="breadcrumb"' : ''
 			);
 		}
 
