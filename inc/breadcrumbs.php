@@ -22,18 +22,127 @@
  * @license   http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
+/**
+ * Astra Get Breadcrumb
+ *
+ * Gets the basic Breadcrumb wrapper div & content
+ *
+ * @since 1.8.1
+ * @param boolean $echo Whether to echo or not.
+ * @return string
+ */
+function astra_get_breadcrumb( $echo = true ) {
+
+	if ( ! $echo ) {
+		return '<div class="ast-breadcrumbs-wrapper">
+			<div class="ast-breadcrumbs-inner">' .
+				astra_get_selected_breadcrumb( $echo ) .
+			'</div>
+		</div>';
+	}
+
+	?>
+	<div class="ast-breadcrumbs-wrapper">
+		<div class="ast-breadcrumbs-inner">
+			<?php astra_get_selected_breadcrumb( $echo ); ?>
+		</div>
+	</div>
+	<?php
+
+}
+
+/**
+ * Get selected breadcrumb.
+ * Returns or echo the breadcrumb depending upon the argument.
+ *
+ * @since  1.8.1
+ * @access public
+ * @param  boolean $echo  Whether to echo or not.
+ * @return string Selected Breadcrumb.
+ */
+function astra_get_selected_breadcrumb( $echo = true ) {
+
+	$breadcrumb_source = astra_get_option( 'select-breadcrumb-source' );
+
+	$breadcrumb_enable = is_callable( 'WPSEO_Options::get' ) ? WPSEO_Options::get( 'breadcrumbs-enable' ) : false;
+	$wpseo_option      = get_option( 'wpseo_internallinks' ) ? get_option( 'wpseo_internallinks' ) : $breadcrumb_enable;
+	if ( ! is_array( $wpseo_option ) ) {
+		unset( $wpseo_option );
+		$wpseo_option = array(
+			'breadcrumbs-enable' => $breadcrumb_enable 
+		);
+	}
+
+	if ( function_exists( 'yoast_breadcrumb' ) && true === $wpseo_option['breadcrumbs-enable'] && $breadcrumb_source && 'yoast-seo-breadcrumbs' == $breadcrumb_source ) {
+		// Check if breadcrumb is turned on from WPSEO option.
+		return yoast_breadcrumb( '<div id="ast-breadcrumbs-yoast" >', '</div>', $echo );
+	} elseif ( function_exists( 'bcn_display' ) && $breadcrumb_source && 'breadcrumb-navxt' == $breadcrumb_source ) {
+
+		if( true === $echo ) {
+			?> 
+				<div class="breadcrumbs" typeof="BreadcrumbList" vocab="https://schema.org/">
+					<?php bcn_display() ?> 
+				</div> 
+			<?php
+			return;
+		}
+		// Check if breadcrumb is turned on from Breadcrumb NavXT plugin.
+		return '<div class="breadcrumbs" typeof="BreadcrumbList" vocab="https://schema.org/">' . bcn_display( ! $echo ) . '</div>';
+	} elseif ( function_exists( 'rank_math_the_breadcrumbs' ) && $breadcrumb_source && 'rank-math' == $breadcrumb_source ) {
+		// Check if breadcrumb is turned on from Rank Math plugin.
+		if ( ! $echo ) {
+			ob_start();
+			rank_math_the_breadcrumbs();
+			return ob_get_clean();
+		}
+		rank_math_the_breadcrumbs();
+	} else {
+		// Load default Astra breadcrumb if none selected.
+		return astra_get_breadcrumb_trail( $echo );
+	}
+}
+
+
+/**
+ * Deprecating astra_breadcrumb_trail function.
+ *
+ * @since 1.8.1
+ * @deprecated 1.8.1 Use astra_get_breadcrumb()
+ * @param array  $args List of args.
+ * @see astra_breadcrumb_trail()
+ *
+ * @return string new breadcrumb function.
+ */
+function astra_breadcrumb_trail( $args = array() ) {
+	_deprecated_function( __FUNCTION__, '1.8.1', 'astra_get_breadcrumb()' );
+	astra_get_breadcrumb();
+}
+
 /**
  * Shows a breadcrumb for all types of pages.  This is a wrapper function for the Breadcrumb_Trail class,
  * which should be used in theme templates.
  *
- * @since  0.1.0
+ * @since  1.8.1
  * @access public
- * @param  array $args Arguments to pass to Breadcrumb_Trail.
- * @return void
+ * @param  boolean $echo  Whether to echo or not.
+ * @return string Selected Breadcrumb.
  */
-function breadcrumb_trail( $args = array() ) {
+function astra_get_breadcrumb_trail( $echo = true ) {
 
-	$breadcrumb = apply_filters( 'breadcrumb_trail_object', null, $args );
+	$defaults = array(
+		'before'      => '<div class="ast-breadcrumbs">',
+		'after'       => '</div>',
+		'show_browse' => false,
+		'echo'        => $echo,
+	);
+
+	$args = apply_filters( 'astra_breadcrumb_trail_args', $defaults );
+
+	$breadcrumb = apply_filters( 'astra_breadcrumb_trail_object', null, $args );
 
 	if ( ! is_object( $breadcrumb ) )
 		$breadcrumb = new Astra_Breadcrumb_Trail( $args );
@@ -167,6 +276,7 @@ class Astra_Breadcrumb_Trail {
 		$breadcrumb    = '';
 		$item_count    = count( $this->items );
 		$item_position = 0;
+		$meta          = '';
 
 		// Connect the breadcrumb trail if there are items in the trail.
 		if ( 0 < $item_count ) {
@@ -190,8 +300,21 @@ class Astra_Breadcrumb_Trail {
 				
 			if ( $this->args['schema'] ) {
 				// Add the number of items and item list order schema.
-				$breadcrumb .= sprintf( '<meta name="numberOfItems" content="%d" />', absint( $item_count ) );
-				$breadcrumb .= '<meta name="itemListOrder" content="Ascending" />';
+				$breadcrumb .= sprintf( '<meta content="%1$d" %2$s />', absint( $item_count ), astra_attr(
+					'breadcrumb-trail-items-num-meta',
+					array(
+						'name'  => 'numberOfItems',
+						'class' => '',
+					)
+				) );
+				$breadcrumb .= '<meta ' . astra_attr(
+					'breadcrumb-trail-items-list-meta',
+					array(
+						'class'   => '',
+						'name'    => 'itemListOrder',
+						'content' => 'Ascending',
+					)
+				) . '/>';
 			}
 
 			// Loop through the items and add them to the list.
@@ -223,7 +346,9 @@ class Astra_Breadcrumb_Trail {
 				}
 
 				// Create list item attributes.
-				$attributes = $this->args['schema'] ? $item_schema_attr : '' . ' class="' . $item_class . '"';
+				$attributes = $this->args['schema'] ? $item_schema_attr : '';
+
+				$attributes .= ' class="' . $item_class . '"';
 				
 				if ( $this->args['schema'] ) {
 					// Build the meta position HTML.
@@ -249,7 +374,7 @@ class Astra_Breadcrumb_Trail {
 				$this->args['before'],
 				$breadcrumb,
 				$this->args['after'],
-				$this->args['schema'] ? 'sitemprop="breadcrumb"' : ''
+				$this->args['schema'] ? 'itemprop="breadcrumb"' : ''
 			);
 		}
 
